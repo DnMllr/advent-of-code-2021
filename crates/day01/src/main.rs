@@ -46,10 +46,7 @@ impl Solver for State {
     }
 
     fn solution(&self) -> usize {
-        match self.0 {
-            Some((sum, _)) => sum,
-            _ => 0,
-        }
+        self.0.map(|(s, _)| s).unwrap_or(0)
     }
 }
 
@@ -70,9 +67,8 @@ impl<I: Solver, const S: usize> Buffer<I, S> {
     }
 
     fn push(&mut self, num: i32) -> Option<i32> {
-        self.window.rotate_left(1);
-        self.window[S - 1] = num;
         self.count += 1;
+        self.window[self.count % S] = num;
         (self.count >= S).then(|| self.window.iter().sum())
     }
 }
