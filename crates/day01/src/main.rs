@@ -27,21 +27,16 @@ trait Solver {
     fn solution(&self) -> usize;
 }
 
-enum State {
-    Empty,
-    First(i32),
-    Rest(usize, i32),
-}
+#[derive(Default)]
+struct State(Option<(usize, i32)>);
 
 impl State {
     fn transition(&self, num: i32) -> Self {
-        match *self {
-            State::Empty => State::First(num),
-            State::First(prev) if num > prev => State::Rest(1, num),
-            State::First(_) => State::Rest(0, num),
-            State::Rest(sum, prev) if num > prev => State::Rest(sum + 1, num),
-            State::Rest(sum, _) => State::Rest(sum, num),
-        }
+        State(match self.0 {
+            None => Some((0, num)),
+            Some((sum, prev)) if num > prev => Some((sum + 1, num)),
+            Some((sum, _)) => Some((sum, num)),
+        })
     }
 }
 
@@ -51,8 +46,8 @@ impl Solver for State {
     }
 
     fn solution(&self) -> usize {
-        match self {
-            State::Rest(sum, _) => *sum,
+        match self.0 {
+            Some((sum, _)) => sum,
             _ => 0,
         }
     }
@@ -101,9 +96,9 @@ fn main() -> color_eyre::Result<()> {
     let reader = BufReader::new(File::open(&opt.input)?);
 
     let solution = if opt.part_1() {
-        run(State::Empty, reader)?
+        run(State::default(), reader)?
     } else {
-        run(Buffer::<State, 3>::new(State::Empty), reader)?
+        run(Buffer::<State, 3>::new(State::default()), reader)?
     };
 
     println!("answer: {}", solution);
