@@ -22,6 +22,11 @@ impl Cli {
     }
 }
 
+trait Solver {
+    fn next(&mut self, num: i32);
+    fn solution(&self) -> usize;
+}
+
 enum State {
     Empty,
     First(i32),
@@ -29,11 +34,7 @@ enum State {
 }
 
 impl State {
-    fn next(&mut self, num: i32) {
-        *self = self.make_next(num);
-    }
-
-    fn make_next(&self, num: i32) -> Self {
+    fn transition(&self, num: i32) -> Self {
         match *self {
             State::Empty => State::First(num),
             State::First(prev) if num > prev => State::Rest(1, num),
@@ -41,6 +42,12 @@ impl State {
             State::Rest(sum, prev) if num > prev => State::Rest(sum + 1, num),
             State::Rest(sum, _) => State::Rest(sum, num),
         }
+    }
+}
+
+impl Solver for State {
+    fn next(&mut self, num: i32) {
+        *self = self.transition(num);
     }
 
     fn solution(&self) -> usize {
@@ -52,24 +59,38 @@ impl State {
 }
 
 #[derive(Debug)]
-struct Window<const S: usize> {
+struct Buffer<I: Solver, const S: usize> {
     window: [i32; S],
     count: usize,
+    next: I,
 }
 
-impl<const S: usize> Window<S> {
-    fn new() -> Self {
+impl<I: Solver, const S: usize> Buffer<I, S> {
+    fn new(next: I) -> Self {
         Self {
             window: [0; S],
             count: 0,
+            next,
         }
     }
 
-    fn next(&mut self, num: i32) -> Option<i32> {
+    fn push(&mut self, num: i32) -> Option<i32> {
         self.window.rotate_left(1);
         self.window[S - 1] = num;
         self.count += 1;
         (self.count >= S).then(|| self.window.iter().sum())
+    }
+}
+
+impl<I: Solver, const S: usize> Solver for Buffer<I, S> {
+    fn next(&mut self, num: i32) {
+        if let Some(sum) = self.push(num) {
+            self.next.next(sum);
+        }
+    }
+
+    fn solution(&self) -> usize {
+        self.next.solution()
     }
 }
 
@@ -78,23 +99,22 @@ fn main() -> color_eyre::Result<()> {
     let opt = Cli::from_args();
 
     let reader = BufReader::new(File::open(&opt.input)?);
-    let mut state = State::Empty;
 
-    if opt.part_1() {
-        for line in reader.lines() {
-            state.next(line?.trim().parse()?);
-        }
+    let solution = if opt.part_1() {
+        run(State::Empty, reader)?
     } else {
-        let mut window = Window::<3>::new();
+        run(Buffer::<State, 3>::new(State::Empty), reader)?
+    };
 
-        for line in reader.lines() {
-            if let Some(sum) = window.next(line?.trim().parse()?) {
-                state.next(sum);
-            }
-        }
-    }
-
-    println!("answer: {}", state.solution());
+    println!("answer: {}", solution);
 
     Ok(())
+}
+
+fn run<S: Solver, B: BufRead>(mut solver: S, reader: B) -> color_eyre::Result<usize> {
+    for line in reader.lines() {
+        solver.next(line?.trim().parse()?);
+    }
+
+    Ok(solver.solution())
 }
