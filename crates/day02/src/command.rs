@@ -13,19 +13,19 @@ struct CommandParser<'a, I: Iterator<Item = &'a str>> {
 }
 
 impl<'a, I: Iterator<Item = &'a str>> CommandParser<'a, I> {
-    pub fn new(iter: I) -> Self {
+    fn new(iter: I) -> Self {
         Self { iter }
     }
 
-    pub fn next(&mut self) -> Result<&'a str, CommandParseError> {
+    fn next(&mut self) -> Result<&'a str, CommandParseError> {
         self.iter.next().ok_or(CommandParseError::IncompleteCommand)
     }
 
-    pub fn parse_amount(&mut self) -> Result<i32, CommandParseError> {
+    fn parse_amount(&mut self) -> Result<i32, CommandParseError> {
         self.next()?.parse().map_err(CommandParseError::BadInteger)
     }
 
-    pub fn parse(&mut self) -> Result<Command, CommandParseError> {
+    fn parse(&mut self) -> Result<Command, CommandParseError> {
         let cmd = match self.next()? {
             "forward" => Command::Forward,
             "up" => Command::Up,
