@@ -33,7 +33,7 @@ impl<'a, I: Iterator<Item = &'a str>> CommandParser<'a, I> {
             unknown => return Err(CommandParseError::UnknownVerb(unknown.into())),
         };
 
-        Ok(cmd(self.parse_amount()?))
+        self.parse_amount().map(cmd)
     }
 }
 
