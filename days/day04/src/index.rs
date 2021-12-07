@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bit_iter::BitIter;
 use slotmap::{DefaultKey, SlotMap};
 
-use crate::parser::Boards;
+use crate::parser::{Board, Boards, LineOfNumbers};
 
 #[derive(Clone, Copy)]
 pub enum Span {
@@ -76,7 +76,8 @@ pub struct Entry {
 
 #[derive(Debug, Default)]
 pub struct Index {
-    cleanup: HashMap<usize, Vec<DefaultKey>>,
+    cleanup_spans: HashMap<usize, Vec<DefaultKey>>,
+    cleanup_entries: HashMap<usize, Vec<DefaultKey>>,
     spans: SlotMap<DefaultKey, Span>,
     entries: SlotMap<DefaultKey, Entry>,
     numbers: HashMap<u8, Vec<DefaultKey>>,
@@ -86,9 +87,15 @@ impl Index {
     pub fn call_number(&mut self, num: u8) -> Option<Vec<(usize, usize)>> {
         if let Some(winners) = self.inner_call_number(num) {
             for (i, _) in winners.iter() {
-                if let Some(spans) = self.cleanup.remove(&i) {
+                if let Some(spans) = self.cleanup_spans.remove(i) {
                     for s in spans.into_iter() {
                         self.spans.remove(s);
+                    }
+                }
+
+                if let Some(entries) = self.cleanup_entries.remove(i) {
+                    for e in entries.into_iter() {
+                        self.entries.remove(e);
                     }
                 }
             }
@@ -102,7 +109,7 @@ impl Index {
     fn inner_call_number(&mut self, num: u8) -> Option<Vec<(usize, usize)>> {
         let mut winners = Vec::new();
         if let Some(entries) = self.numbers.get(&num) {
-            for entry_key in entries {
+            for entry_key in entries.iter() {
                 if let Some([row, col, board]) = self
                     .entries
                     .get(*entry_key)
@@ -120,7 +127,73 @@ impl Index {
             }
         }
 
-        (winners.len() > 0).then(|| winners)
+        (!winners.is_empty()).then(|| winners)
+    }
+
+    fn insert_board(&mut self, i: usize, board: Board) {
+        let mut board_span = Span::Board(i, 0);
+        let mut rows = [Span::Row(0); 5];
+        let mut cols = [Span::Col(0); 5];
+
+        Self::populate_spans(&mut board_span, &mut rows, &mut cols, &board);
+
+        let mut row_keys = [DefaultKey::default(); 5];
+        let mut col_keys = [DefaultKey::default(); 5];
+        let board_key = self.insert_span(i, board_span);
+
+        self.insert_spans(i, &mut row_keys, &rows);
+        self.insert_spans(i, &mut col_keys, &cols);
+        self.insert_entries(i, board_key, &row_keys, &col_keys, &board);
+    }
+
+    fn populate_spans(
+        board_span: &mut Span,
+        rows: &mut [Span],
+        cols: &mut [Span],
+        board: &[LineOfNumbers],
+    ) {
+        for (row, board_row) in rows.iter_mut().zip(board.iter()) {
+            for (col, num) in cols.iter_mut().zip(board_row.iter()) {
+                row.insert(*num);
+                col.insert(*num);
+                board_span.insert(*num);
+            }
+        }
+    }
+
+    fn insert_spans(&mut self, i: usize, keys: &mut [DefaultKey], spans: &[Span]) {
+        for (span, slot) in spans.iter().zip(keys.iter_mut()) {
+            *slot = self.insert_span(i, *span);
+        }
+    }
+
+    fn insert_span(&mut self, i: usize, span: Span) -> DefaultKey {
+        let key = self.spans.insert(span);
+        self.cleanup_spans.entry(i).or_default().push(key);
+        key
+    }
+
+    fn insert_entries(
+        &mut self,
+        i: usize,
+        board_key: DefaultKey,
+        rows: &[DefaultKey],
+        cols: &[DefaultKey],
+        board: &[LineOfNumbers],
+    ) {
+        let entry_cleanup_list = self.cleanup_entries.entry(i).or_default();
+        for (row, board_row) in rows.iter().copied().zip(board.iter()) {
+            for (col, num) in cols.iter().copied().zip(board_row.iter()) {
+                let entry_key = self.entries.insert(Entry {
+                    row,
+                    col,
+                    board: board_key,
+                });
+
+                entry_cleanup_list.push(entry_key);
+                self.numbers.entry(*num).or_default().push(entry_key);
+            }
+        }
     }
 }
 
@@ -129,47 +202,7 @@ impl From<Boards> for Index {
         let mut index = Self::default();
 
         for (i, board) in boards.into_iter().enumerate() {
-            let mut board_span = Span::Board(i, 0);
-            let mut rows = [Span::Row(0); 5];
-            let mut cols = [Span::Col(0); 5];
-
-            assert_eq!(5, board.len());
-
-            for (row, board_row) in rows.iter_mut().zip(board.iter()) {
-                assert_eq!(5, board_row.len());
-                for (col, num) in cols.iter_mut().zip(board_row.iter()) {
-                    row.insert(*num);
-                    col.insert(*num);
-                    board_span.insert(*num);
-                }
-            }
-
-            let mut row_keys = [DefaultKey::default(); 5];
-            let mut col_keys = [DefaultKey::default(); 5];
-
-            let board_key = index.spans.insert(board_span);
-            index.cleanup.entry(i).or_default().push(board_key);
-
-            for (row, slot) in rows.into_iter().zip(row_keys.iter_mut()) {
-                *slot = index.spans.insert(row);
-                index.cleanup.entry(i).or_default().push(*slot);
-            }
-
-            for (col, slot) in cols.into_iter().zip(col_keys.iter_mut()) {
-                *slot = index.spans.insert(col);
-                index.cleanup.entry(i).or_default().push(*slot);
-            }
-
-            for (row, board_row) in row_keys.into_iter().zip(board.iter()) {
-                for (col, num) in col_keys.into_iter().zip(board_row.iter()) {
-                    let entry_key = index.entries.insert(Entry {
-                        row,
-                        col,
-                        board: board_key,
-                    });
-                    index.numbers.entry(*num).or_default().push(entry_key);
-                }
-            }
+            index.insert_board(i, board);
         }
 
         index
