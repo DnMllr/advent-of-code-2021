@@ -7,7 +7,7 @@ mod index;
 mod parser;
 
 #[derive(StructOpt)]
-#[structopt(name = "aoc2021-day-3", about = "The third day of advent of code")]
+#[structopt(name = "aoc2021-day-4", about = "The fourth day of advent of code")]
 struct Cli {
     #[structopt(parse(from_os_str), help = "the input file from adventofcode")]
     input: PathBuf,
