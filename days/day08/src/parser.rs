@@ -9,7 +9,39 @@ use nom::{
     Finish, IResult,
 };
 
-use crate::model::{Line, Pattern};
+use crate::pattern::Pattern;
+
+#[derive(Debug)]
+pub struct Line {
+    patterns: Vec<Pattern>,
+    output: Vec<Pattern>,
+}
+
+impl Line {
+    pub fn output(&self) -> &[Pattern] {
+        self.output.as_slice()
+    }
+
+    pub fn patterns(&self) -> &[Pattern] {
+        self.patterns.as_slice()
+    }
+}
+
+impl From<(Vec<Pattern>, Vec<Pattern>)> for Line {
+    fn from((patterns, output): (Vec<Pattern>, Vec<Pattern>)) -> Self {
+        assert_eq!(
+            10,
+            patterns.len(),
+            "advent of code specified that there would be 10 patterns"
+        );
+        assert_eq!(
+            4,
+            output.len(),
+            "advent of code specified that there would be 4 outputs"
+        );
+        Line { patterns, output }
+    }
+}
 
 impl FromStr for Line {
     type Err = Error<String>;

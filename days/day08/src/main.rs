@@ -6,6 +6,8 @@ use parser::Input;
 
 mod model;
 mod parser;
+mod pattern;
+mod tables;
 
 #[derive(Debug, Parser)]
 /// Implements a solution to the 8th day of Advent of Code 2021.
