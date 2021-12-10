@@ -127,7 +127,7 @@ impl Solver {
         self.solutions
             .iter()
             .enumerate()
-            .filter(|(_, &p)| p.is_done())
+            .filter(|(_, p)| p.is_done())
             .fold(0u8, |l, (i, _)| l | (1 << i))
     }
 }

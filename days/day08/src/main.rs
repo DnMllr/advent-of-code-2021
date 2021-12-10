@@ -2,7 +2,12 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use clap::Parser;
 use model::Solver;
-use parser::Input;
+use nom::error::Error;
+use parser::{Input, Line};
+use rayon::{
+    iter::{IntoParallelRefIterator, ParallelIterator},
+    str::ParallelString,
+};
 
 mod model;
 mod parser;
@@ -16,9 +21,13 @@ struct Options {
     /// Path to the file that contains the input.
     input: PathBuf,
 
-    #[clap(short, long)]
+    #[clap(long)]
     /// Whether or not to run part_2
     part_2: bool,
+
+    #[clap(short, long)]
+    /// Whether to run in parallel or not
+    parallel: bool,
 }
 
 impl Options {
@@ -34,8 +43,15 @@ fn main() -> color_eyre::Result<()> {
 
     File::open(&opts.input)?.read_to_string(&mut buf)?;
 
-    let input: Input = buf.parse()?;
+    if opts.parallel {
+        run_parallel(&opts, buf)
+    } else {
+        run_serial(&opts, buf)
+    }
+}
 
+fn run_serial(opts: &Options, buf: String) -> color_eyre::Result<()> {
+    let input: Input = buf.parse()?;
     if opts.part_1() {
         let part_1 = input
             .outputs()
@@ -63,6 +79,46 @@ fn main() -> color_eyre::Result<()> {
         }
 
         println!("part 2: {}", sum);
+    }
+
+    Ok(())
+}
+
+fn run_parallel(opts: &Options, buf: String) -> color_eyre::Result<()> {
+    let input = Input::new(
+        buf.par_lines()
+            .map(|l| l.parse())
+            .collect::<Result<Vec<Line>, Error<String>>>()?,
+    );
+
+    if opts.part_1() {
+        let part_1 = input
+            .par_outputs()
+            .flat_map(|p| p.par_iter())
+            .filter(|p| p.possible_numbers().len() == 1)
+            .count();
+
+        println!("part 1: {}", part_1);
+    } else {
+        let part_2: usize = input
+            .par_lines()
+            .map_init(Solver::default, |s, l| {
+                s.reset();
+                for pattern in l.patterns() {
+                    if let Some(solution) = s.add(*pattern) {
+                        let mut answer = 0;
+                        for output in l.output() {
+                            answer *= 10;
+                            answer += solution.solve(*output);
+                        }
+                        return answer;
+                    }
+                }
+                0
+            })
+            .sum();
+
+        println!("part 2: {}", part_2);
     }
 
     Ok(())

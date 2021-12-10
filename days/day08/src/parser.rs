@@ -8,6 +8,7 @@ use nom::{
     sequence::{separated_pair, terminated},
     Finish, IResult,
 };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::pattern::Pattern;
 
@@ -70,12 +71,24 @@ impl FromStr for Input {
 }
 
 impl Input {
+    pub fn new(lines: Vec<Line>) -> Self {
+        Self { lines }
+    }
+
     pub fn outputs(&self) -> impl Iterator<Item = &[Pattern]> {
-        self.lines.iter().map(Line::output)
+        self.lines().map(Line::output)
+    }
+
+    pub fn par_outputs(&self) -> impl ParallelIterator<Item = &[Pattern]> {
+        self.par_lines().map(Line::output)
     }
 
     pub fn lines(&self) -> impl Iterator<Item = &Line> {
         self.lines.iter()
+    }
+
+    pub fn par_lines(&self) -> impl ParallelIterator<Item = &Line> {
+        self.lines.par_iter()
     }
 }
 
