@@ -9,6 +9,8 @@ use rayon::{
     str::ParallelString,
 };
 
+use crate::model::solve;
+
 mod model;
 mod parser;
 mod pattern;
@@ -63,19 +65,9 @@ fn run_serial(opts: &Options, buf: String) -> color_eyre::Result<()> {
     } else {
         let mut sum = 0;
         let mut solver = Solver::default();
-        'OUTER: for line in input.lines() {
+        for line in input.lines() {
             solver.reset();
-            for pattern in line.patterns() {
-                if let Some(solution) = solver.add(*pattern) {
-                    let mut answer = 0;
-                    for output in line.output() {
-                        answer *= 10;
-                        answer += solution.solve(*output);
-                    }
-                    sum += answer;
-                    continue 'OUTER;
-                }
-            }
+            sum += solve(line, &mut solver).expect("advent of code input is well formed");
         }
 
         println!("part 2: {}", sum);
@@ -104,17 +96,7 @@ fn run_parallel(opts: &Options, buf: String) -> color_eyre::Result<()> {
             .par_lines()
             .map_init(Solver::default, |s, l| {
                 s.reset();
-                for pattern in l.patterns() {
-                    if let Some(solution) = s.add(*pattern) {
-                        let mut answer = 0;
-                        for output in l.output() {
-                            answer *= 10;
-                            answer += solution.solve(*output);
-                        }
-                        return answer;
-                    }
-                }
-                0
+                solve(l, s).expect("advent of code input is well formed")
             })
             .sum();
 

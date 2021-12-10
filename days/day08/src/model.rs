@@ -1,8 +1,24 @@
 use std::fmt::Debug;
 
 use bit_iter::BitIter;
+use color_eyre::eyre::eyre;
 
-use crate::{pattern::Pattern, tables::NUMBER_TO_PATTERN};
+use crate::{parser::Line, pattern::Pattern, tables::NUMBER_TO_PATTERN};
+
+pub fn solve(line: &Line, solver: &mut Solver) -> color_eyre::Result<usize> {
+    for pattern in line.patterns() {
+        if let Some(solution) = solver.add(*pattern) {
+            let mut answer = 0;
+            for output in line.output() {
+                answer *= 10;
+                answer += solution.solve(*output);
+            }
+            return Ok(answer);
+        }
+    }
+
+    Err(eyre!("failed to find solution to line"))
+}
 
 #[derive(Clone)]
 pub struct Solver {
