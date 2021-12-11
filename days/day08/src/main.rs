@@ -63,12 +63,14 @@ fn run_serial(opts: &Options, buf: String) -> color_eyre::Result<()> {
 
         println!("part 1: {}", part_1);
     } else {
-        let mut sum = 0;
         let mut solver = Solver::default();
-        for line in input.lines() {
-            solver.reset();
-            sum += solve(line, &mut solver).expect("advent of code input is well formed");
-        }
+        let sum: usize = input
+            .lines()
+            .map(|line| {
+                solver.reset();
+                solve(line, &mut solver).expect("advent of code input is well formed")
+            })
+            .sum();
 
         println!("part 2: {}", sum);
     }

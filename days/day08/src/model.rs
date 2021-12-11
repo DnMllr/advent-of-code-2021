@@ -8,12 +8,10 @@ use crate::{parser::Line, pattern::Pattern, tables::NUMBER_TO_PATTERN};
 pub fn solve(line: &Line, solver: &mut Solver) -> color_eyre::Result<usize> {
     for pattern in line.patterns() {
         if let Some(solution) = solver.add(*pattern) {
-            let mut answer = 0;
-            for output in line.output() {
+            return Ok(line.output().iter().fold(0, |mut answer, output| {
                 answer *= 10;
-                answer += solution.solve(*output);
-            }
-            return Ok(answer);
+                answer + solution.solve(*output)
+            }));
         }
     }
 
@@ -31,7 +29,7 @@ impl Debug for Solver {
         let mut d = f.debug_struct("Solver");
 
         for (l, r) in self.solutions.iter().enumerate() {
-            let mut tmp = [0u8; 4];
+            let mut tmp = [0; 4];
             let name = (b'a' + (l as u8)) as char;
             d.field(name.encode_utf8(&mut tmp), r);
         }
@@ -97,12 +95,12 @@ impl Solver {
 
     fn solution(&mut self) -> Solution {
         for (l, r) in self.solutions.iter().zip(self.solution.iter_mut()) {
-            *r = Pattern::new(
-                1 << l
-                    .indicies()
+            let d = 1
+                << l.indicies()
                     .next()
-                    .expect("solution should only be called when each inner pattern is done"),
-            );
+                    .expect("solution should only be called when each inner pattern is done");
+
+            *r = Pattern::new(d);
         }
 
         Solution {
@@ -144,7 +142,7 @@ impl Solver {
             .iter()
             .enumerate()
             .filter(|(_, p)| p.is_done())
-            .fold(0u8, |l, (i, _)| l | (1 << i))
+            .fold(0, |l, (i, _)| l | (1 << i))
     }
 }
 
@@ -163,13 +161,9 @@ impl<'a> Solution<'a> {
     }
 
     fn map_pattern(&self, pattern: Pattern) -> Pattern {
-        let mut p = Pattern::ZERO;
-
-        for i in pattern.indicies() {
-            p |= self.map[i];
-        }
-
-        p
+        pattern
+            .indicies()
+            .fold(Pattern::ZERO, |p, i| p | self.map[i])
     }
 }
 #[cfg(test)]

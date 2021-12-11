@@ -64,6 +64,14 @@ impl std::ops::BitOrAssign for Pattern {
     }
 }
 
+impl std::ops::BitOr for Pattern {
+    type Output = Pattern;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
 impl Pattern {
     pub const MASK: u8 = (1 << 7) - 1;
     pub const ALL: Self = Self(Self::MASK);
