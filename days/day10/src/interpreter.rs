@@ -59,9 +59,11 @@ impl<E: Error, S: Iterator<Item = Result<Command, E>>> Interpreter<E, S> {
                 )))
             }
         });
+
         self.line += 1;
         self.column = 0;
         self.stack.clear();
+
         res
     }
 

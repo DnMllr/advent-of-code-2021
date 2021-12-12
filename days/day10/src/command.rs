@@ -47,6 +47,7 @@ impl FromStr for Command {
 pub enum CommandParseError {
     #[error("too much input passed")]
     TooLong,
+
     #[error("a bad symbol was passed {0}")]
     UnknownSymbol(String),
 }
