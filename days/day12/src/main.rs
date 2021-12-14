@@ -3,10 +3,7 @@ use std::{fs::File, io::Read, path::PathBuf};
 use clap::Parser;
 use pathfinding::count_all_paths;
 
-use crate::{
-    parser::parse,
-    pathfinding::{Part1, Part2},
-};
+use crate::pathfinding::{Part1, Part2};
 
 mod parser;
 mod pathfinding;
@@ -31,7 +28,7 @@ fn main() -> color_eyre::Result<()> {
 
     File::open(&opts.input)?.read_to_string(&mut buf)?;
 
-    let input = parse(&buf).expect("advent of code input is always valid");
+    let input = parser::Parser::parse(&buf).expect("advent of code input is always valid");
 
     if opts.part_2 {
         println!("part 2 {}", count_all_paths(&input, Part2));
