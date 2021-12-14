@@ -1,11 +1,14 @@
-use fxhash::FxHashMap;
+use std::sync::atomic::{AtomicU16, Ordering};
+
+use dashmap::DashMap;
+use fxhash::FxBuildHasher;
 use nom::{
-    character::complete::{alpha1, char, line_ending},
+    character::complete::{alpha1, char},
     error::Error,
-    multi::separated_list1,
     sequence::separated_pair,
     Finish, IResult,
 };
+use rayon::{iter::ParallelIterator, str::ParallelString};
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -51,8 +54,8 @@ pub enum ParseError {
 
 #[derive(Debug, Default)]
 pub struct Parser<'a> {
-    map: FxHashMap<&'a str, u16>,
-    code: u16,
+    map: DashMap<&'a str, u16, FxBuildHasher>,
+    code: AtomicU16,
 }
 
 impl<'a> Parser<'a> {
@@ -61,28 +64,27 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_str(&mut self, input: &'a str) -> Result<Parse, ParseError> {
-        separated_list1(line_ending, Self::passage)(input)
-            .finish()
-            .map(|(_, passages)| Parse {
-                passages: self.build_passages(passages),
+        let data: Result<Vec<Passage>, ParseError> = input
+            .par_lines()
+            .map(Self::passage)
+            .map(|s| {
+                s.finish()
+                    .map(|(_, (from, to))| Passage {
+                        from: self.parse_cave(from),
+                        to: self.parse_cave(to),
+                    })
+                    .map_err(|e| ParseError::ParsingFailure(Error::new(e.to_string(), e.code)))
             })
-            .map_err(|e| ParseError::ParsingFailure(Error::new(e.to_string(), e.code)))
+            .collect();
+
+        Ok(Parse { passages: data? })
     }
 
-    fn build_passages(&mut self, data: Vec<(&'a str, &'a str)>) -> Vec<Passage> {
-        data.into_iter()
-            .map(|(from, to)| Passage {
-                from: self.parse_cave(from),
-                to: self.parse_cave(to),
-            })
-            .collect()
-    }
-
-    fn parse_cave(&mut self, input: &'a str) -> Cave {
-        let code = *self.map.entry(input).or_insert_with(|| {
-            self.code += 1;
-            self.code
-        });
+    fn parse_cave(&self, input: &'a str) -> Cave {
+        let code = *self
+            .map
+            .entry(input)
+            .or_insert_with(|| self.code.fetch_add(1, Ordering::Relaxed));
 
         match input.trim() {
             "start" => Cave::Start,
