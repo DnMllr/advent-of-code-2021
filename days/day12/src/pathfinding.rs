@@ -1,10 +1,12 @@
+use std::marker::PhantomData;
+
 use fxhash::{FxHashMap, FxHashSet};
 use rayon::prelude::*;
 
 use crate::parser::{Cave, Parse, Passage};
 
-pub fn count_all_paths<T: SmallCaveVisitor + Sync>(parse: &Parse, strategy: T) -> usize {
-    let mut pathfinder = PathFinder::new(strategy);
+pub fn count_all_paths<T: SmallCaveVisitor + Sync>(parse: &Parse) -> usize {
+    let mut pathfinder = PathFinder::<T>::new();
     pathfinder.load_paths(parse.passages());
     pathfinder.count_all_paths()
 }
@@ -81,14 +83,14 @@ impl SmallCaveVisitor for Part2 {
 #[derive(Debug)]
 struct PathFinder<T> {
     map: FxHashMap<Cave, Vec<Cave>>,
-    small_cave_strategy: T,
+    small_cave_strategy: PhantomData<T>,
 }
 
 impl<T: SmallCaveVisitor + Sync> PathFinder<T> {
-    pub fn new(strategy: T) -> Self {
+    pub fn new() -> Self {
         Self {
             map: FxHashMap::default(),
-            small_cave_strategy: strategy,
+            small_cave_strategy: PhantomData,
         }
     }
 
@@ -152,9 +154,9 @@ mod tests {
             .parse_str(include_str!("../input/large.txt"))
             .expect("must be able to parse");
 
-        assert_eq!(10, count_all_paths(&small, Part1));
-        assert_eq!(19, count_all_paths(&medium, Part1));
-        assert_eq!(226, count_all_paths(&large, Part1));
+        assert_eq!(10, count_all_paths::<Part1>(&small));
+        assert_eq!(19, count_all_paths::<Part1>(&medium));
+        assert_eq!(226, count_all_paths::<Part1>(&large));
     }
 
     #[test]
@@ -166,8 +168,8 @@ mod tests {
         let large =
             Parser::parse(include_str!("../input/large.txt")).expect("must be able to parse");
 
-        assert_eq!(36, count_all_paths(&small, Part2));
-        assert_eq!(103, count_all_paths(&medium, Part2));
-        assert_eq!(3509, count_all_paths(&large, Part2));
+        assert_eq!(36, count_all_paths::<Part2>(&small));
+        assert_eq!(103, count_all_paths::<Part2>(&medium));
+        assert_eq!(3509, count_all_paths::<Part2>(&large));
     }
 }

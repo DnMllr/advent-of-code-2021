@@ -31,9 +31,9 @@ fn main() -> color_eyre::Result<()> {
     let input = parser::Parser::parse(&buf).expect("advent of code input is always valid");
 
     if opts.part_2 {
-        println!("part 2 {}", count_all_paths(&input, Part2));
+        println!("part 2 {}", count_all_paths::<Part2>(&input));
     } else {
-        println!("part 1 {}", count_all_paths(&input, Part1));
+        println!("part 1 {}", count_all_paths::<Part1>(&input));
     }
 
     Ok(())
