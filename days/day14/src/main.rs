@@ -30,8 +30,6 @@ fn main() -> color_eyre::Result<()> {
 
     let mut replacer = Replacer::new(&input);
 
-    println!("{}", replacer);
-
     replacer.apply_n(10);
     println!("part 1 {}", replacer.frequency_diff());
 

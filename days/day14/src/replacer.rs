@@ -9,17 +9,6 @@ pub struct Replacer<'a> {
     to: HashMap<(u8, u8), usize>,
 }
 
-impl<'a> std::fmt::Display for Replacer<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for ((l, r), count) in self.from.iter() {
-            let slice = &[*l, *r][..];
-            let key = unsafe { std::str::from_utf8_unchecked(slice) };
-            writeln!(f, "{}: {}", key, count)?;
-        }
-        Ok(())
-    }
-}
-
 impl<'a> Replacer<'a> {
     pub fn new(input: &'a Input<'a>) -> Self {
         let mut from = HashMap::new();
