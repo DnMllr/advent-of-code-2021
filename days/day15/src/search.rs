@@ -1,49 +1,33 @@
-use std::{
-    collections::{BinaryHeap, HashMap},
-    marker::PhantomData,
-};
+use std::collections::{BinaryHeap, HashMap};
 
-use crate::{
-    astar::GridStrategy,
-    grid::{GridRef, Position},
-};
+use crate::grid::Position;
 
 #[derive(Debug)]
-pub struct Search<P> {
-    strategy: PhantomData<P>,
+pub struct Search {
     end: Position,
     queue: BinaryHeap<Node>,
     costs: HashMap<Position, usize>,
 }
 
-impl<P> Search<P> {
-    pub fn new() -> Self {
-        Self {
-            strategy: PhantomData,
-            end: Position { x: 0, y: 0 },
+impl Search {
+    pub fn start(end: Position) -> Self {
+        let mut search = Self {
+            end,
             queue: BinaryHeap::new(),
             costs: HashMap::new(),
-        }
-    }
+        };
 
-    pub fn next(&mut self) -> Option<Position> {
-        self.queue.pop().map(|n| n.position)
-    }
-}
-
-impl<P: GridStrategy> Search<P> {
-    pub fn start(grid: GridRef) -> Self {
-        let mut search = Self::new();
-
-        search.end = P::end(grid);
         search.costs.insert(Node::start().position, 0);
         search.queue.push(Node::start());
 
         search
     }
 
-    pub fn cost(&self, position: &Position) -> Option<usize> {
-        self.costs.get(position).copied()
+    pub fn cost(&self, position: &Position) -> usize {
+        self.costs
+            .get(position)
+            .copied()
+            .expect("positions passed into cost should have come from this search's next method, which means that they already have a cost")
     }
 
     pub fn visit(&mut self, position: &Position, cost: usize) {
@@ -60,12 +44,20 @@ impl<P: GridStrategy> Search<P> {
         position == &self.end
     }
 
-    pub fn distance_from_end(&self, position: &Position) -> usize {
+    fn distance_from_end(&self, position: &Position) -> usize {
         position.distance(&self.end)
     }
 
     fn should_update_position(&self, position: &Position, cost: usize) -> bool {
         self.costs.get(position).map(|c| cost < *c).unwrap_or(true)
+    }
+}
+
+impl Iterator for Search {
+    type Item = Position;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.queue.pop().map(|n| n.position)
     }
 }
 
@@ -78,7 +70,7 @@ struct Node {
 impl Node {
     pub const fn start() -> Self {
         Node {
-            position: Position { x: 0, y: 0 },
+            position: Position::ZERO,
             priority: 0,
         }
     }
